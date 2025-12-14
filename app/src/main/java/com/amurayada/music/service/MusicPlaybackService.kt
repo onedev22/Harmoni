@@ -31,7 +31,16 @@ class MusicPlaybackService : MediaSessionService() {
         super.onCreate()
         
         // Initialize ExoPlayer
-        player = ExoPlayer.Builder(this).build()
+        // Initialize ExoPlayer with Audio Focus
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+            .build()
+
+        player = ExoPlayer.Builder(this)
+            .setAudioAttributes(audioAttributes, true) // true enables automatic audio focus handling
+            .setHandleAudioBecomingNoisy(true) // Pause when headphones are unplugged
+            .build()
         
         // Add listener for widget updates
         player.addListener(object : Player.Listener {

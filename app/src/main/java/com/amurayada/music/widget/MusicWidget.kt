@@ -77,23 +77,41 @@ class MusicWidget : GlanceAppWidget() {
         isFavorite: Boolean,
         coverBitmap: android.graphics.Bitmap?
     ) {
+        // Responsive Logic
+        // Responsive Logic
+        val size = androidx.glance.LocalSize.current
+        val isSmall = size.width < 300.dp // Threshold for scaling down
+        
+        // Dimensions based on size
+        val coverSize = if (isSmall) 56.dp else 78.dp
+        val playButtonSize = if (isSmall) 56.dp else 78.dp
+        val likeButtonWidth = if (isSmall) 40.dp else 53.dp
+        val likeButtonHeight = if (isSmall) 56.dp else 78.dp
+        val cornerRadius = if (isSmall) 18.dp else 24.dp
+        val spacerSize = if (isSmall) 6.dp else 14.dp
+        val iconSize = if (isSmall) 22.dp else 24.dp
+        val playIconSize = if (isSmall) 28.dp else 32.dp
+        val titleSize = if (isSmall) 17.sp else 20.sp
+        val artistSize = if (isSmall) 13.sp else 16.sp
+        val containerCornerRadius = if (isSmall) 22.dp else 35.dp
+        
         // Main Container
         Row(
             modifier = GlanceModifier
-                .width(400.dp)
-                .height(110.dp)
+                .fillMaxWidth()
+                .then(if (isSmall) GlanceModifier.height(84.dp) else GlanceModifier.fillMaxHeight())
                 .background(Color(0xFF1d2a1e))
-                .cornerRadius(35.dp)
-                .padding(14.dp)
+                .cornerRadius(containerCornerRadius)
+                .padding(spacerSize)
                 .clickable(actionRunCallback<OpenAppActionCallback>()),
             verticalAlignment = Alignment.Vertical.CenterVertically
         ) {
             // Cover Art
             Box(
                 modifier = GlanceModifier
-                    .size(78.dp)
-                    .background(ColorProvider(Color(0xFFff7a5c))) // Gradient approximation
-                    .cornerRadius(24.dp),
+                    .size(coverSize)
+                    .background(ColorProvider(Color(0xFFff7a5c)))
+                    .cornerRadius(cornerRadius),
                 contentAlignment = Alignment.Center
             ) {
                 if (coverBitmap != null) {
@@ -102,18 +120,18 @@ class MusicWidget : GlanceAppWidget() {
                         contentDescription = "Album Art",
                         modifier = GlanceModifier
                             .fillMaxSize()
-                            .cornerRadius(24.dp),
+                            .cornerRadius(cornerRadius),
                         contentScale = androidx.glance.layout.ContentScale.Crop
                     )
                 } else {
                     Text(
                         text = "🎵",
-                        style = TextStyle(fontSize = 24.sp)
+                        style = TextStyle(fontSize = if (isSmall) 18.sp else 24.sp)
                     )
                 }
             }
 
-            Spacer(modifier = GlanceModifier.width(14.dp))
+            Spacer(modifier = GlanceModifier.width(spacerSize))
 
             // Text Info
             Column(
@@ -126,7 +144,7 @@ class MusicWidget : GlanceAppWidget() {
                     text = title,
                     style = TextStyle(
                         color = ColorProvider(Color(0xFFf1f5ec)),
-                        fontSize = 20.sp,
+                        fontSize = titleSize,
                         fontWeight = FontWeight.Bold
                     ),
                     maxLines = 1
@@ -136,47 +154,47 @@ class MusicWidget : GlanceAppWidget() {
                     text = artist,
                     style = TextStyle(
                         color = ColorProvider(Color(0xFF90a090)),
-                        fontSize = 16.sp
+                        fontSize = artistSize
                     ),
                     maxLines = 1
                 )
             }
 
-            Spacer(modifier = GlanceModifier.width(14.dp))
+            Spacer(modifier = GlanceModifier.width(spacerSize))
 
-            // Like Button (Pill shape)
+            // Like Button (Always visible, scaled)
             Box(
                 modifier = GlanceModifier
-                    .width(53.dp)
-                    .height(78.dp)
+                    .width(likeButtonWidth)
+                    .height(likeButtonHeight)
                     .background(Color(0xFFdff3f4))
-                    .cornerRadius(18.dp)
+                    .cornerRadius(if (isSmall) 12.dp else 18.dp)
                     .clickable(actionRunCallback<ToggleFavoriteActionCallback>()),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     provider = ImageProvider(if (isFavorite) R.drawable.ic_favorite else R.drawable.ic_favorite_border),
                     contentDescription = "Favorite",
-                    modifier = GlanceModifier.size(24.dp),
+                    modifier = GlanceModifier.size(iconSize),
                     colorFilter = androidx.glance.ColorFilter.tint(if (isFavorite) GlanceTheme.colors.primary else ColorProvider(Color(0xFF1d2a1e)))
                 )
             }
 
-            Spacer(modifier = GlanceModifier.width(14.dp))
+            Spacer(modifier = GlanceModifier.width(spacerSize))
 
             // Play Button
             Box(
                 modifier = GlanceModifier
-                    .size(78.dp)
-                    .background(Color(0xFF7cff6b)) // Gradient approximation
-                    .cornerRadius(22.dp)
+                    .size(playButtonSize)
+                    .background(Color(0xFF7cff6b))
+                    .cornerRadius(if (isSmall) 16.dp else 22.dp)
                     .clickable(actionRunCallback<PlayPauseActionCallback>()),
                 contentAlignment = Alignment.Center
             ) {
                 Image(
                     provider = ImageProvider(if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play),
                     contentDescription = if (isPlaying) "Pause" else "Play",
-                    modifier = GlanceModifier.size(32.dp),
+                    modifier = GlanceModifier.size(playIconSize),
                     colorFilter = androidx.glance.ColorFilter.tint(ColorProvider(Color(0xFF042b10)))
                 )
             }

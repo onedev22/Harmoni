@@ -161,6 +161,15 @@ fun NowPlayingScreen(
     var showLyricsDialog by remember { mutableStateOf(false) }
     var showSongInfoDialog by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
+
+    if (showShareDialog) {
+        com.amurayada.music.ui.components.ShareDialog(
+            song = currentSong,
+            dominantColor = gradientColor,
+            onDismiss = { showShareDialog = false }
+        )
+    }
     
     val lrcPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -710,13 +719,7 @@ fun NowPlayingScreen(
                                 )
                             }
                             
-                            IconButton(onClick = { 
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, "Escuchando ${currentSong.title} de ${currentSong.artist}")
-                                }
-                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Compartir"))
-                            }) {
+                            IconButton(onClick = { showShareDialog = true }) {
                                 Icon(
                                     Icons.Rounded.Share,
                                     contentDescription = "Compartir",
@@ -1153,13 +1156,7 @@ fun NowPlayingScreen(
                             )
                         }
                         
-                        IconButton(onClick = { 
-                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(android.content.Intent.EXTRA_TEXT, "Escuchando ${currentSong.title} de ${currentSong.artist}")
-                            }
-                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Compartir"))
-                        }) {
+                        IconButton(onClick = { showShareDialog = true }) {
                             Icon(
                                 Icons.Rounded.Share,
                                 contentDescription = "Compartir",

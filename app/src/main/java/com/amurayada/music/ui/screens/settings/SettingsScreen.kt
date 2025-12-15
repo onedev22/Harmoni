@@ -145,7 +145,7 @@ fun SettingsScreen(
                     
                     SettingsItem(
                         title = "Desarrollador",
-                        subtitle = "Amurayada",
+                        subtitle = "Onedev22",
                         icon = Icons.Rounded.Code,
                         onClick = { }
                     )

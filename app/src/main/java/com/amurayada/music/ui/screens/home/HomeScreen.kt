@@ -43,6 +43,7 @@ fun HomeScreen(
     onAlbumClick: (Album) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onHistoryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val greeting = remember {
@@ -89,7 +90,11 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 16.dp)
+                    ) {
                         Text(
                             text = greeting,
                             style = MaterialTheme.typography.headlineLarge,
@@ -113,13 +118,44 @@ fun HomeScreen(
                         ) {
                             Icon(Icons.Rounded.Search, contentDescription = "Buscar")
                         }
-                        FilledIconButton(
-                            onClick = onSettingsClick,
-                            colors = IconButtonDefaults.filledIconButtonColors(
-                                containerColor = colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                            )
-                        ) {
-                            Icon(Icons.Rounded.Settings, contentDescription = "Ajustes")
+                        
+                        Box {
+                            var showMenu by remember { mutableStateOf(false) }
+                            
+                            FilledIconButton(
+                                onClick = { showMenu = true },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                )
+                            ) {
+                                Icon(Icons.Rounded.MoreVert, contentDescription = "Más opciones")
+                            }
+                            
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Historial") },
+                                    onClick = {
+                                        showMenu = false
+                                        onHistoryClick()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.History, contentDescription = null)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Ajustes") },
+                                    onClick = {
+                                        showMenu = false
+                                        onSettingsClick()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Rounded.Settings, contentDescription = null)
+                                    }
+                                )
+                            }
                         }
                     }
                 }

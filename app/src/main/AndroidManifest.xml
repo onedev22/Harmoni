@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     
+    <!-- Internet permission for lyrics API -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
     <!-- Permissions for foreground service and notifications -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -46,7 +49,7 @@
                 <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
         </service>
-
+        
         <!-- Music Widget Receiver -->
         <receiver
             android:name=".widget.MusicWidgetReceiver"

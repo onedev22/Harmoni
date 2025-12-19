@@ -58,20 +58,15 @@ android {
         jvmTarget = "11"
         freeCompilerArgs = listOf(
             "-opt-in=kotlin.RequiresOptIn",
-            "-Xjvm-default=all",
-            // Compose optimizations
-            "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:suppressKotlinVersionCompatibilityCheck=true"
+            "-Xjvm-default=all"
         )
     }
     buildFeatures {
         compose = true
-        buildConfig = false // Disable BuildConfig generation
     }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+    composeCompiler {
+        enableStrongSkippingMode = true
+        enableIntrinsicRemember = true
     }
 }
 
@@ -117,6 +112,9 @@ dependencies {
     
     // DataStore for preferences
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // ProfileInstaller for baseline profiles
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     
     // Testing
     testImplementation(libs.junit)

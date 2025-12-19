@@ -28,9 +28,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -62,27 +59,19 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
     
     // Favorites list - persisted
     private val _favorites = mutableStateListOf<Song>()
-    private val _favoritesFlow = MutableStateFlow<List<Song>>(emptyList())
-    val favorites: StateFlow<List<Song>> = _favoritesFlow.asStateFlow()
+    val favorites: List<Song> get() = _favorites.toList()
     
     // Recently played (history) - persisted
     private val _recentlyPlayed = mutableStateListOf<Song>()
-    private val _recentlyPlayedFlow = MutableStateFlow<List<Song>>(emptyList())
-    val recentlyPlayed: StateFlow<List<Song>> = _recentlyPlayedFlow.asStateFlow()
+    val recentlyPlayed: List<Song> get() = _recentlyPlayed.toList()
     
     // Most played tracking - persisted
     private val playCountMap = mutableMapOf<Long, Int>()
-    private val _mostPlayedFlow = MutableStateFlow<List<Song>>(emptyList())
-    val mostPlayed: StateFlow<List<Song>> = _mostPlayedFlow.asStateFlow()
-    
-    private fun updateDerivedFlows() {
-        _favoritesFlow.value = _favorites.toList()
-        _recentlyPlayedFlow.value = _recentlyPlayed.toList()
-        _mostPlayedFlow.value = _recentlyPlayed
+    val mostPlayed: List<Song>
+        get() = _recentlyPlayed
             .distinctBy { it.id }
             .sortedByDescending { playCountMap[it.id] ?: 0 }
             .take(20)
-    }
             
     // Event to expand player from other screens (e.g. widget)
     private val _expandPlayerEvent = kotlinx.coroutines.flow.MutableSharedFlow<Unit>()
@@ -110,7 +99,6 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                     val songJson = jsonArray.getJSONObject(i)
                     _favorites.add(songFromJson(songJson))
                 }
-                updateDerivedFlows()
             } catch (e: Exception) {
                 // Ignore parsing errors
             }
@@ -125,7 +113,6 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                     val songJson = jsonArray.getJSONObject(i)
                     _recentlyPlayed.add(songFromJson(songJson))
                 }
-                updateDerivedFlows()
             } catch (e: Exception) {
                 // Ignore parsing errors
             }
@@ -249,7 +236,7 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                     albumId = 0L
                 )
                 currentSong = song
-                loadLyrics(song.id)
+                loadLyrics(song)
                 updatePlaybackState()
             }
         }
@@ -275,21 +262,10 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                     if (currentIndex >= 0 && currentIndex < queue.size) {
                         val newSong = queue[currentIndex]
                         currentSong = newSong
-                        // Remove if already exists (to move it to front)
-                        _recentlyPlayed.removeAll { it.id == newSong.id }
-                        // Add to front
-                        _recentlyPlayed.add(0, newSong)
-                        // Keep only last 50 items
-                        if (_recentlyPlayed.size > 50) {
-                            _recentlyPlayed.removeAt(_recentlyPlayed.size - 1)
-                        }
-                        
+                        addToHistory(newSong)
                         playCountMap[newSong.id] = (playCountMap[newSong.id] ?: 0) + 1
-                        
-                        saveHistory()
                         savePlayCounts()
-                        updateDerivedFlows()
-                        loadLyrics(newSong.id)
+                        loadLyrics(newSong)
                         updatePlaybackState()
                     } else {
                         // Fallback to sync from controller if queue is empty (e.g. after restart)
@@ -315,7 +291,7 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                                 addToHistory(newSong)
                                 playCountMap[newSong.id] = (playCountMap[newSong.id] ?: 0) + 1
                                 savePlayCounts()
-                                loadLyrics(newSong.id)
+                                loadLyrics(newSong)
                             }
                         } else {
                              syncWithController()
@@ -380,7 +356,7 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
         
         playbackState = PlaybackState.Loading
         
-        loadLyrics(song.id)
+        loadLyrics(song)
     }
     
     fun removeFromQueue(song: Song) {
@@ -486,7 +462,6 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
             _favorites.add(0, song)
         }
         saveFavorites()
-        updateDerivedFlows()
     }
     
     fun isFavorite(song: Song): Boolean {
@@ -540,6 +515,9 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
     // Lyrics
     var lyrics by mutableStateOf<String?>(null)
         private set
+        
+    var lyricsSource by mutableStateOf<String?>(null)
+        private set
     
     var lyricsLoadingState by mutableStateOf<LyricsLoadingState>(LyricsLoadingState.Idle)
         private set
@@ -570,6 +548,7 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
             lyricsRepository.saveLyrics(songId, content)
             if (currentSong?.id == songId) {
                 lyrics = content
+                lyricsSource = "SimpMusic"
                 lyricsLoadingState = LyricsLoadingState.Success
             }
         }
@@ -580,6 +559,7 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
             val success = lyricsRepository.importLrcFile(songId, lrcContent)
             if (success && currentSong?.id == songId) {
                 lyrics = lrcContent
+                lyricsSource = "SimpMusic"
                 lyricsLoadingState = LyricsLoadingState.Success
             }
         }
@@ -600,11 +580,15 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
 
     private fun loadLyrics(song: Song) {
         viewModelScope.launch {
+            // Clear old lyrics immediately to avoid showing stale content
+            lyrics = null
+            lyricsSource = null
             lyricsLoadingState = LyricsLoadingState.Loading
             
             when (val result = lyricsRepository.getLyrics(song)) {
                 is LyricsResult.Success -> {
                     lyrics = result.lyrics
+                    lyricsSource = result.source
                     lyricsLoadingState = LyricsLoadingState.Success
                 }
                 is LyricsResult.NotFound -> {
@@ -615,6 +599,27 @@ class PlaybackViewModel(application: Application) : AndroidViewModel(application
                     lyrics = null
                     lyricsLoadingState = LyricsLoadingState.Error(result.message)
                 }
+            }
+            
+            // Prefetch next song lyrics in background
+            prefetchNextSongLyrics()
+        }
+    }
+    
+    private fun prefetchNextSongLyrics() {
+        viewModelScope.launch {
+            try {
+                val currentIndex = mediaController?.currentMediaItemIndex ?: return@launch
+                val nextIndex = currentIndex + 1
+                
+                if (nextIndex < queue.size) {
+                    val nextSong = queue[nextIndex]
+                    // Only prefetch if not already cached (getLyrics will check cache first)
+                    lyricsRepository.getLyrics(nextSong)
+                    android.util.Log.d("PlaybackViewModel", "Prefetched lyrics for: ${nextSong.title}")
+                }
+            } catch (e: Exception) {
+                // Silently ignore prefetch errors
             }
         }
     }

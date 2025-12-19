@@ -42,7 +42,10 @@ fun LibraryScreen(
     onTabSelected: (LibraryTab) -> Unit,
     modifier: Modifier = Modifier,
     currentSong: Song? = null,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    playlists: List<com.amurayada.music.data.model.Playlist> = emptyList(),
+    onAddToPlaylist: (com.amurayada.music.data.model.Playlist, Song) -> Unit = { _, _ -> },
+    onCreatePlaylist: () -> Unit = {}
 ) {
     // Removed local state: var selectedTab by remember { mutableStateOf(LibraryTab.SONGS) }
     
@@ -149,7 +152,10 @@ fun LibraryScreen(
                         }
                     },
                     currentSong = currentSong,
-                    isPlaying = isPlaying
+                    isPlaying = isPlaying,
+                    playlists = playlists,
+                    onAddToPlaylist = onAddToPlaylist,
+                    onCreatePlaylist = onCreatePlaylist
                 )
                 
                 LibraryTab.ALBUMS -> AlbumsGridScreen(
@@ -165,7 +171,11 @@ fun LibraryScreen(
                 LibraryTab.GENRES -> LazyColumn(
                     contentPadding = PaddingValues(bottom = 100.dp)
                 ) {
-                    items(genres) { genre ->
+                    items(
+                        items = genres,
+                        key = { it.id },
+                        contentType = { "genre_item" }
+                    ) { genre ->
                         ListItem(
                             headlineContent = { Text(genre.name) },
                             supportingContent = { Text("${genre.songCount} canciones") },

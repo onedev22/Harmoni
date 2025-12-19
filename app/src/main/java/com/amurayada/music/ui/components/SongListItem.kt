@@ -25,7 +25,8 @@ fun SongListItem(
     modifier: Modifier = Modifier,
     index: Int? = null,
     isCurrentSong: Boolean = false,
-    isPlaying: Boolean = false
+    isPlaying: Boolean = false,
+    trailingContent: @Composable (() -> Unit)? = null
 ) {
     val backgroundColor = if (isCurrentSong) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
@@ -81,7 +82,10 @@ fun SongListItem(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp)),
+                        .background(
+                            remember { androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.5f) },
+                            RoundedCornerShape(8.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     EqualizerIndicator(
@@ -115,6 +119,11 @@ fun SongListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        
+        if (trailingContent != null) {
+            Spacer(modifier = Modifier.width(8.dp))
+            trailingContent()
         }
     }
 }

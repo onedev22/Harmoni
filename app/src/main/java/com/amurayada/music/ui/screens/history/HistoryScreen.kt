@@ -21,6 +21,7 @@ fun HistoryScreen(
     historyItems: List<Song>,
     onSongClick: (Song) -> Unit,
     onClearHistory: () -> Unit,
+    onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showClearDialog by remember { mutableStateOf(false) }
@@ -41,6 +42,11 @@ fun HistoryScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
+            },
+            navigationIcon = {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.Rounded.ArrowBack, contentDescription = "Atrás")
                 }
             },
             actions = {

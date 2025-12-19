@@ -69,6 +69,7 @@ fun NowPlayingScreen(
     isFavorite: Boolean,
     queue: List<Song> = emptyList(),
     lyrics: String? = null,
+    lyricsSource: String? = null,
     lyricsLoadingState: LyricsLoadingState = LyricsLoadingState.Idle,
     sleepTimerDuration: Long? = null,
     isSleepTimerRunning: Boolean = false,
@@ -90,6 +91,7 @@ fun NowPlayingScreen(
     onGoToAlbum: (Long) -> Unit = {},
     onRemoveFromQueue: (Song) -> Unit = {},
     onReorderQueue: (Int, Int) -> Unit = { _, _ -> },
+    onOpenHandsFree: () -> Unit = {},
     isAmoledMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -670,6 +672,15 @@ fun NowPlayingScreen(
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
+                            
+                            IconButton(onClick = onOpenHandsFree) {
+                                Icon(
+                                    Icons.Rounded.DirectionsCar,
+                                    contentDescription = "Manos Libres",
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1038,6 +1049,15 @@ fun NowPlayingScreen(
                                 Icons.Rounded.QueueMusic,
                                 contentDescription = "Cola",
                                 tint = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        
+                        IconButton(onClick = onOpenHandsFree) {
+                            Icon(
+                                Icons.Rounded.DirectionsCar,
+                                contentDescription = "Manos Libres",
+                                tint = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1052,6 +1072,7 @@ fun NowPlayingScreen(
     if (showFullLyrics) {
         SyncedLyricsView(
             lyrics = lyrics,
+            lyricsSource = lyricsSource,
             currentPosition = currentPosition,
             gradientColor = gradientColor,
             onClose = { showFullLyrics = false },
@@ -1331,6 +1352,7 @@ fun NowPlayingScreen(
 @Composable
 fun SyncedLyricsView(
     lyrics: String?,
+    lyricsSource: String?,
     currentPosition: Long,
     gradientColor: Color,
     onClose: () -> Unit,
@@ -1503,6 +1525,18 @@ fun SyncedLyricsView(
                                 modifier = Modifier.fillMaxWidth()
                                     .scale(if (isCurrent) 1.1f else 1f)
                                     .animateContentSize()
+                            )
+                        }
+                        
+                        // Attribution
+                        item {
+                            Spacer(modifier = Modifier.height(32.dp))
+                            Text(
+                                text = if (lyricsSource == "LRCLIB") "Letras de LRCLIB" else "SimpMusic lyrics",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.3f),
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }

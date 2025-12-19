@@ -51,6 +51,9 @@ import com.amurayada.music.ui.theme.MusicTheme
 import com.amurayada.music.ui.viewmodel.LibraryViewModel
 import com.amurayada.music.ui.viewmodel.PlaybackViewModel
 import com.amurayada.music.ui.viewmodel.SettingsViewModel
+import com.amurayada.music.ui.viewmodel.HandsFreeViewModel
+import com.amurayada.music.ui.screens.handsfree.HandsFreeScreen
+import androidx.compose.ui.zIndex
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
@@ -59,6 +62,8 @@ class MainActivity : ComponentActivity() {
     private val libraryViewModel: LibraryViewModel by viewModels()
     private val playbackViewModel: PlaybackViewModel by viewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private val playlistViewModel: com.amurayada.music.ui.viewmodel.PlaylistViewModel by viewModels()
+    private val handsFreeViewModel: HandsFreeViewModel by viewModels()
     
     @OptIn(ExperimentalPermissionsApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,7 +112,9 @@ class MainActivity : ComponentActivity() {
                     MusicPlayerApp(
                         libraryViewModel = libraryViewModel,
                         playbackViewModel = playbackViewModel,
-                        settingsViewModel = settingsViewModel
+                        settingsViewModel = settingsViewModel,
+                        playlistViewModel = playlistViewModel,
+                        handsFreeViewModel = handsFreeViewModel
                     )
                 } else {
                     PermissionRequestScreen(
@@ -152,7 +159,9 @@ data class BottomNavItem(
 fun MusicPlayerApp(
     libraryViewModel: LibraryViewModel,
     playbackViewModel: PlaybackViewModel,
-    settingsViewModel: SettingsViewModel
+    settingsViewModel: SettingsViewModel,
+    playlistViewModel: com.amurayada.music.ui.viewmodel.PlaylistViewModel,
+    handsFreeViewModel: HandsFreeViewModel
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -174,16 +183,16 @@ fun MusicPlayerApp(
                 unselectedIcon = { Icon(Icons.Outlined.LibraryMusic, contentDescription = null) }
             ),
             BottomNavItem(
+                route = Screen.Playlists.route,
+                title = "Playlists",
+                selectedIcon = { Icon(Icons.Filled.QueueMusic, contentDescription = null) },
+                unselectedIcon = { Icon(Icons.Outlined.QueueMusic, contentDescription = null) }
+            ),
+            BottomNavItem(
                 route = Screen.Favorites.route,
                 title = "Favoritos",
                 selectedIcon = { Icon(Icons.Filled.Favorite, contentDescription = null) },
                 unselectedIcon = { Icon(Icons.Outlined.FavoriteBorder, contentDescription = null) }
-            ),
-            BottomNavItem(
-                route = Screen.History.route,
-                title = "Historial",
-                selectedIcon = { Icon(Icons.Filled.History, contentDescription = null) },
-                unselectedIcon = { Icon(Icons.Outlined.History, contentDescription = null) }
             )
         )
     }
@@ -204,7 +213,7 @@ fun MusicPlayerApp(
     
     // Hide bottom nav on NowPlaying screen (not needed anymore as it's an overlay, but good for other screens if any)
     val showBottomNav = currentDestination?.route in listOf(
-        Screen.Home.route, Screen.Library.route, Screen.Favorites.route, Screen.History.route
+        Screen.Home.route, Screen.Library.route, Screen.Favorites.route, Screen.Playlists.route
     )
 
     // Now Playing Overlay State
@@ -220,6 +229,22 @@ fun MusicPlayerApp(
     LaunchedEffect(Unit) {
         playbackViewModel.expandPlayerEvent.collect {
             isPlayerExpanded = true
+        }
+    }
+    
+    // Hands-Free Mode State
+    val isHandsFreeMode by handsFreeViewModel.isHandsFreeMode.collectAsState()
+    
+    // Keep Screen On
+    val window = (context as? android.app.Activity)?.window
+    DisposableEffect(isHandsFreeMode) {
+        if (isHandsFreeMode) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
     
@@ -320,7 +345,8 @@ fun MusicPlayerApp(
                             navController.navigate(Screen.AlbumDetail.createRoute(album.id))
                         },
                         onSearchClick = { navController.navigate(Screen.Search.route) },
-                        onSettingsClick = { navController.navigate(Screen.Settings.route) }
+                        onSettingsClick = { navController.navigate(Screen.Settings.route) },
+                        onHistoryClick = { navController.navigate(Screen.History.route) }
                     )
                 }
                 
@@ -349,7 +375,16 @@ fun MusicPlayerApp(
                         onSearchClick = { navController.navigate(Screen.Search.route) },
                         onSettingsClick = { navController.navigate(Screen.Settings.route) },
                         currentSong = currentSong,
-                        isPlaying = playbackState is com.amurayada.music.data.model.PlaybackState.Playing
+                        isPlaying = playbackState is com.amurayada.music.data.model.PlaybackState.Playing,
+                        playlists = playlistViewModel.playlists.collectAsState().value,
+                        onAddToPlaylist = { playlist, song ->
+                            playlistViewModel.addSongToPlaylist(playlist.id, song.id)
+                        },
+                        onCreatePlaylist = {
+                            // Navigate to playlist creation or show dialog
+                            // For now, we can navigate to Playlists screen which has the FAB
+                            navController.navigate(Screen.Playlists.route)
+                        }
                     )
                 }
                 
@@ -373,6 +408,63 @@ fun MusicPlayerApp(
                         },
                         onClearHistory = {
                             playbackViewModel.clearHistory()
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Screen.Playlists.route) {
+                    val playlists by playlistViewModel.playlists.collectAsState()
+                    com.amurayada.music.ui.screens.playlist.PlaylistScreen(
+                        playlists = playlists,
+                        onCreatePlaylist = playlistViewModel::createPlaylist,
+                        onPlaylistClick = { playlist ->
+                            navController.navigate(Screen.PlaylistDetail.createRoute(playlist.id))
+                        },
+                        onDeletePlaylist = playlistViewModel::deletePlaylist,
+                        onRenamePlaylist = playlistViewModel::renamePlaylist
+                    )
+                }
+
+                composable(
+                    route = Screen.PlaylistDetail.route,
+                    arguments = listOf(
+                        androidx.navigation.navArgument("playlistId") {
+                            type = androidx.navigation.NavType.LongType
+                        }
+                    )
+                ) { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
+                    val playlists by playlistViewModel.playlists.collectAsState()
+                    val playlist = playlists.find { it.id == playlistId }
+                    val playlistSongs = playlist?.songIds?.mapNotNull { songId ->
+                        songs.find { it.id == songId }
+                    } ?: emptyList()
+
+                    com.amurayada.music.ui.screens.playlist.PlaylistDetailScreen(
+                        playlist = playlist,
+                        songs = playlistSongs,
+                        allSongs = songs,
+                        onBackClick = { navController.popBackStack() },
+                        onSongClick = { song ->
+                            playbackViewModel.playSong(song, playlistSongs)
+                        },
+                        onRemoveSong = { songId ->
+                            playlistViewModel.removeSongFromPlaylist(playlistId, songId)
+                        },
+                        onAddSong = { song ->
+                            playlistViewModel.addSongToPlaylist(playlistId, song.id)
+                        },
+                        onPlayAll = {
+                            if (playlistSongs.isNotEmpty()) {
+                                playbackViewModel.playSong(playlistSongs.first(), playlistSongs)
+                            }
+                        },
+                        onShuffle = {
+                            if (playlistSongs.isNotEmpty()) {
+                                val shuffled = playlistSongs.shuffled()
+                                playbackViewModel.playSong(shuffled.first(), shuffled)
+                            }
                         }
                     )
                 }
@@ -519,6 +611,7 @@ fun MusicPlayerApp(
                 isFavorite = currentSong?.let { playbackViewModel.isFavorite(it) } ?: false,
                 queue = playbackViewModel.queue,
                 lyrics = playbackViewModel.lyrics,
+                lyricsSource = playbackViewModel.lyricsSource,
                 lyricsLoadingState = playbackViewModel.lyricsLoadingState,
                 sleepTimerDuration = playbackViewModel.sleepTimerDuration,
                 isSleepTimerRunning = playbackViewModel.isSleepTimerRunning,
@@ -543,7 +636,27 @@ fun MusicPlayerApp(
                 },
                 onRemoveFromQueue = playbackViewModel::removeFromQueue,
                 onReorderQueue = playbackViewModel::reorderQueue,
+                onOpenHandsFree = { handsFreeViewModel.setManualMode(true) },
                 isAmoledMode = isAmoledMode
+            )
+        }
+        
+        // Hands-Free Overlay
+        AnimatedVisibility(
+            visible = isHandsFreeMode,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.fillMaxSize().zIndex(10f)
+        ) {
+            HandsFreeScreen(
+                currentSong = currentSong,
+                isPlaying = playbackState is com.amurayada.music.data.model.PlaybackState.Playing,
+                currentPosition = currentPosition,
+                isAmoledMode = isAmoledMode,
+                onPlayPause = playbackViewModel::togglePlayPause,
+                onNext = playbackViewModel::skipToNext,
+                onPrevious = playbackViewModel::skipToPrevious,
+                onExit = { handsFreeViewModel.setManualMode(false) }
             )
         }
     }

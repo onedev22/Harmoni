@@ -1,6 +1,7 @@
 package com.amurayada.music.ui.viewmodel
 
 import android.app.Application
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,6 +16,20 @@ import kotlinx.coroutines.launch
 class LibraryViewModel(application: Application) : AndroidViewModel(application) {
     
     private val repository = MediaRepository(application)
+    
+    private val contentObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            super.onChange(selfChange)
+            loadLibrary()
+        }
+    }
+
+
+
+    override fun onCleared() {
+        super.onCleared()
+        getApplication<Application>().contentResolver.unregisterContentObserver(contentObserver)
+    }
     
     var songs by mutableStateOf<List<Song>>(emptyList())
         private set
@@ -34,8 +49,8 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var searchQuery by mutableStateOf("")
         private set
     
-    val filteredSongs: List<Song>
-        get() = if (searchQuery.isEmpty()) {
+    val filteredSongs: List<Song> by derivedStateOf {
+        if (searchQuery.isEmpty()) {
             songs
         } else {
             songs.filter {
@@ -44,9 +59,10 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 it.album.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
     
-    val filteredAlbums: List<Album>
-        get() = if (searchQuery.isEmpty()) {
+    val filteredAlbums: List<Album> by derivedStateOf {
+        if (searchQuery.isEmpty()) {
             albums
         } else {
             albums.filter {
@@ -54,27 +70,31 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 it.artist.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
     
-    val filteredArtists: List<Artist>
-        get() = if (searchQuery.isEmpty()) {
+    val filteredArtists: List<Artist> by derivedStateOf {
+        if (searchQuery.isEmpty()) {
             artists
         } else {
             artists.filter {
                 it.name.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
 
-    val filteredGenres: List<com.amurayada.music.data.model.Genre>
-        get() = if (searchQuery.isEmpty()) {
+    val filteredGenres: List<com.amurayada.music.data.model.Genre> by derivedStateOf {
+        if (searchQuery.isEmpty()) {
             genres
         } else {
             genres.filter {
                 it.name.contains(searchQuery, ignoreCase = true)
             }
         }
+    }
         
-    val recentlyAddedSongs: List<Song>
-        get() = songs.sortedByDescending { it.dateAdded }.take(20)
+    val recentlyAddedSongs: List<Song> by derivedStateOf {
+        songs.sortedByDescending { it.dateAdded }.take(20)
+    }
     
     fun loadLibrary() {
         viewModelScope.launch {
@@ -108,4 +128,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
     // Hoisted state for LibraryScreen tabs
     var selectedLibraryTab by mutableStateOf(0) // 0: Songs, 1: Albums, 2: Artists, 3: Genres
+
+    init {
+        loadLibrary()
+        application.contentResolver.registerContentObserver(
+            android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            true,
+            contentObserver
+        )
+    }
 }

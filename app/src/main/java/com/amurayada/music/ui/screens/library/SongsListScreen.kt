@@ -15,16 +15,24 @@ import androidx.compose.ui.unit.dp
 import com.amurayada.music.data.model.Song
 import com.amurayada.music.ui.components.SongListItem
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+
 @Composable
 fun SongsListScreen(
     songs: List<Song>,
+    playlists: List<com.amurayada.music.data.model.Playlist>,
     onSongClick: (Song) -> Unit,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
+    onAddToPlaylist: (com.amurayada.music.data.model.Playlist, Song) -> Unit,
+    onCreatePlaylist: () -> Unit,
     modifier: Modifier = Modifier,
     currentSong: Song? = null,
     isPlaying: Boolean = false
 ) {
+    var showAddToPlaylistDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Song?>(null) }
+
     if (songs.isEmpty()) {
         Box(
             modifier = modifier.fillMaxSize(),
@@ -92,14 +100,57 @@ fun SongsListScreen(
                 key = { _, song -> song.id },
                 contentType = { _, _ -> "song_item" }
             ) { index, song ->
+                var showMenu by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+                
                 SongListItem(
                     song = song,
                     onClick = { onSongClick(song) },
                     index = index + 1,
                     isCurrentSong = currentSong?.id == song.id,
-                    isPlaying = isPlaying && currentSong?.id == song.id
+                    isPlaying = isPlaying && currentSong?.id == song.id,
+                    trailingContent = {
+                        Box {
+                            IconButton(onClick = { showMenu = true }) {
+                                Icon(Icons.Rounded.MoreVert, contentDescription = "Options")
+                            }
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = { showMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Agregar a Playlist") },
+                                    onClick = {
+                                        showMenu = false
+                                        showAddToPlaylistDialog = song
+                                    }
+                                )
+                            }
+                        }
+                    }
                 )
             }
         }
+    }
+
+    if (showAddToPlaylistDialog != null) {
+        com.amurayada.music.ui.components.AddToPlaylistDialog(
+            playlists = playlists,
+            onPlaylistSelected = { playlist ->
+                showAddToPlaylistDialog?.let { song: Song ->
+                    onAddToPlaylist(playlist, song)
+                }
+                showAddToPlaylistDialog = null
+            },
+            onCreateNewPlaylist = {
+                onCreatePlaylist()
+                // Dialog stays open or closes? Usually closes and navigates or shows create dialog.
+                // For simplicity, let's close it. The user will be taken to create playlist screen or dialog.
+                // But wait, onCreatePlaylist in MainActivity usually just creates it. 
+                // We need a way to create AND add. 
+                // For now, let's just close this and let the user create it separately or handle it in parent.
+                showAddToPlaylistDialog = null
+            },
+            onDismiss = { showAddToPlaylistDialog = null }
+        )
     }
 }
